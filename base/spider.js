@@ -24,6 +24,7 @@ spider = {
         this.pageUrls.push('http://so.gushiwen.org/authors/');
         this.pageUrls.push('http://so.gushiwen.org/guwen/');
     },
+    // 抓取分类
     getClassify: function() {
         return new Promise((resolve, reject) => {
             this.setClassifyUrl();
@@ -74,6 +75,7 @@ spider = {
             });
         });
     },
+    // 抓取诗文
     getPoetry: function() {
         return new Promise((resolve, reject) => {
             superagent.get(this.poetryUrls.baseUrl).end((err, data) => {
@@ -96,6 +98,18 @@ spider = {
             });
         });
     },
+    // 诗文：从未抓取到的链接中重新抓取
+    reGetPoetry: function () {
+        return new Promise((resolve, reject) => {
+            MongoDB.find('fail_yzs',{},(err, infoArr) => {
+                if (err) {
+                    reject(err);
+                }
+                this.limitGetYzs(infoArr, resolve, true);
+            });
+        });
+    },
+    // 抓取诗文页面并控制并发量
     limitGetPage: function(urls, resolve) {
         this.poetryFailList = [];
         async.mapLimit (urls, 1, (url, callback) => {
@@ -119,6 +133,7 @@ spider = {
             }
         });
     },
+    // 抓取诗文页面并分析
     getPoetryMain: function(url, callback) {
         superagent.get(url).end((err, data) => {
             if (err || !data.text) {
@@ -140,16 +155,7 @@ spider = {
             this.limitGetYzs(infoArr, callback);
         });
     },
-    reGetPoetry: function () {
-        return new Promise((resolve, reject) => {
-            MongoDB.find('fail_yzs',{},(err, infoArr) => {
-                if (err) {
-                    reject(err);
-                }
-                this.limitGetYzs(infoArr, resolve, true);
-            });
-        });
-    },
+    // 抓取诗文翻译注释赏析
     limitGetYzs: function(infoArr, funCallBack, isRe) {
         this.yzsFailList = [];
         async.mapLimit (infoArr, 10, (info, callback) => {
@@ -178,6 +184,7 @@ spider = {
             }
         });
     },
+    // 存储诗文相关信息
     showYiZhuShang: function(info, callback) {
         superagent.get(info.url).end((err, data) => {
             let poetry = {};
