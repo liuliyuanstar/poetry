@@ -1,0 +1,26 @@
+{
+  "classify": {
+    "text": "String",
+    "href": "String",
+    "title": "String",
+    "tab": "String"
+  },
+  "poetry": {
+    "poetryId": "String",
+    "title": "String",
+    "times": "String",
+    "author": "String",
+    "content": [{ "original": "String", "translate": "String", "annotation": "String"}],
+    "appreciation": "Array"
+  },
+  "fail_poetry": {
+    "url": "String"
+  },
+  "fail_yzs": {
+    "id": "String",
+    "title": "String",
+    "times": "String",
+    "author": "String",
+    "url": "String"
+  }
+}

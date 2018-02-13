@@ -8,10 +8,20 @@ router.get('/', function(req, res, next) {
 });
 
 // 接口们
+router.get('/classify', function(req, res, next) {
+  spider.classify().then((data) => {
+    res.send(data);
+  });
+});
 router.get('/poetry', function(req, res, next) {
-  let result = spider.onRequest();
-  console.log(result);
-  res.send(result);
+  spider.getPoetry().then((data) => {
+    res.send(data);
+  });
+});
+router.get('/repoetry', function(req, res, next) {
+  spider.reGetPoetry().then((data) => {
+    res.send(data);
+  });
 });
 
 module.exports = router;
