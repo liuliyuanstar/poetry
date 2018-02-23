@@ -8,14 +8,21 @@ let MongoDB = require('./../dataBase/dbHelper');
 spider = {
     ep: new eventproxy(),
     pageUrls: [],
-    poetryFailList: 0,
-    yzsFailList: 0,
+    poetryFailList: [],
+    yzsFailList: [],
+    bookFailList: [],
+    chapterFailList: [],
     poetryUrls: {
         baseUrl: 'http://www.gushiwen.org/shiwen/',
         mark: 'default_0A0A',
         totalPages: 0,
         totalNum: 0,
         numPerPage: 10
+    },
+    ancientBooks: {
+        basicUrl: 'http://so.gushiwen.org/guwen/',
+        mark: 'book_',
+        totalNum: 0
     },
     setClassifyUrl: function() {
         this.pageUrls.push('http://www.gushiwen.org');
@@ -225,6 +232,192 @@ spider = {
                 });
             }
             callback(null, 'detail');
+        });
+    },
+    // 抓取古籍
+    getAncientBooks: function () {
+        return new Promise((resolve, reject) => {
+            superagent.get(this.ancientBooks.basicUrl).end((err, data) => {
+                if (err) {
+                    reject(err);
+                }
+                let $ = cheerio.load(data.text);
+                let totalNum = $($('.main3 .pages>span')[1]).text();
+                totalNum = parseInt(totalNum.slice(1, totalNum.length-1));
+                this.ancientBooks.totalNum = totalNum;
+                let urls = [];
+                for (let i = 110; i < 111; i++) {
+                    let url = this.ancientBooks.basicUrl + this.ancientBooks.mark + (i + 1) + ".aspx";
+                    urls.push(url);
+                }
+                console.log("共 " + totalNum + "本");
+                this.limitGetBooks(urls, resolve);
+            });
+        });
+    },
+    // 获取取古籍内容
+    getBooksDetail: function (url, callback) {
+        superagent.get(url).end((err, data) => {
+            if (err || !data.text) {
+                this.bookFailList.push({bookId: url, chapter: 'all'});
+                return;
+            }
+            let $ = cheerio.load(data.text);
+            let bookId = $($('.main3 .left textarea')[0]).attr('id').slice(12);
+            let introduce = $($('.main3 .sonspic .cont>p')[0]).text();
+            let title = $($('.main3 .sonspic .cont b')[0]).text();
+            let chapterList = [];
+            let chapterLables = $('.main3 .left .sons ul>span>a');
+            if (chapterLables.length == 0) {
+                chapterLables = $('.main3 .left .sons .bookcont');
+                for (let m = 0; m < chapterLables.length; m++) {
+                    let lables = $($(chapterLables[m]).find('div')[1]).find('span>a');
+                    for (let n = 0; n < lables.length; n++) {
+                        let lable = lables[n];
+                        let urlInfo = {};
+                        if ($(lable).attr("href")) {
+                            let url = 'http://so.gushiwen.org' + $(lable).attr("href");
+                            urlInfo.url = url;
+                            urlInfo.part = $(chapterLables[m]).find('div>strong').text();
+                            urlInfo.bookId = bookId;
+                            chapterList.push(urlInfo);
+                        }
+                    }
+                }
+            } else {
+                for (let i = 0; i < chapterLables.length; i++) {
+                    let urlInfo = {};
+                    let lable = chapterLables[i];
+                    if ($(lable).attr("href")) {
+                        let url = 'http://so.gushiwen.org' + $(lable).attr("href");
+                        urlInfo.url = url;
+                        urlInfo.part = 'none';
+                        urlInfo.bookId = bookId;
+                        chapterList.push(urlInfo);
+                    }
+                }
+            }
+            let book = {
+                bookId: bookId,
+                introduce: introduce,
+                title: title,
+                chapter: []
+            };
+            MongoDB.save('book', book, () => {
+                this.limitGetChapter(chapterList, callback);
+            });
+        });
+    },
+    // 抓取古籍内容
+    limitGetBooks: function(urls, resolve) {
+        this.chapterFailList = [];
+        async.mapLimit (urls, 2, (url, callback) => {
+            this.getBooksDetail(url, callback);
+        }, (err, results) => {
+            if (err) {
+                console.log(err);
+            }
+            if (results.length == urls.length) {
+                // if (this.chapterFailList.length > 0) {
+                //     for (let i = 0; i < this.chapterFailList.length; i++) {
+                //         let info = this.chapterFailList[i];
+                //         MongoDB.save('fail_yzs', info);
+                //     }
+                //     console.log('chapterFailList:' + this.chapterFailList.length);
+                // }
+                // if (isRe) {
+                //     let res = {
+                //         errorCode: 0,
+                //         errorMessage: '古籍再次抓取完毕！'
+                //     };
+                //     funCallBack(res);
+                // } else {
+                //     funCallBack(null, infoArr.length + ' yizhushang call back!');
+                // }
+                console.log('book success!');
+            } else {
+                for (let j = 0; j < this.bookFailList.length; j++) {
+                    let failChapter = this.bookFailList[j];
+                    MongoDB.save('fail_chapter', failChapter);
+                }
+                console.log("falied book " + this.bookFailList.length);
+            }
+            let res = {
+                errorCode: 0,
+                errorMessage: '抓取完毕！',
+                failed: this.bookFailList.length
+            };
+            resolve(res);
+        });
+    },
+    // 抓取章节内容
+    limitGetChapter: function (urlInfos, funCallBack) {
+        async.mapLimit (urlInfos, 10, (urlInfo, callBack) => {
+            this.getChapterDetail(urlInfo, callBack);
+        }, (err, results) => {
+            if (results.length == urlInfos.length) {
+                console.log("book: " + urlInfos[0].bookId + " done!");
+            } else {
+                for (let i = 0; i < this.chapterFailList.length; i++) {
+                    let chapter = this.chapterFailList[i];
+                    MongoDB.save('fail_chapter', chapter);
+                }
+                console.log("fail_chapter: " + this.chapterFailList.length);
+            }
+            funCallBack(null, urlInfos[0].bookId);
+        });
+    },
+    // 获取古籍章节内容
+    getChapterDetail: function (urlInfo, callBack) {
+        superagent.get(urlInfo.url).end((err, data) => {
+            if (err || !data.text) {
+                this.chapterFailList.push({bookId: urlInfo.bookId, url: url});
+                return;
+            }
+            let $ = cheerio.load(data.text);
+            let chapterId = $($('.main3 .left .cont h1 span')[1]).attr('id').slice(9);
+            let title = $($('.main3 .left .cont h1 span')[0]).find('b').text();
+            let author = $($('.main3 .left .cont .source a')[0]).text();
+            let contentLable = $('.main3 .left .cont .contson');
+            let content = contentLable.text();
+            let chapter = {
+                chapterId: chapterId,
+                title: title,
+                author: author,
+                content: content,
+                part: urlInfo.part
+            };
+            if ($($('.main3 .left .cont h1 a')[1]).attr('id')) {
+                let yizhuId = $($('.main3 .left .cont h1 a')[1]).attr('id').slice(7);
+                let yiZhuUrl = 'http://so.gushiwen.org/guwen/ajaxbfanyi.aspx?id=' + yizhuId;
+                superagent.get(yiZhuUrl).end((err, subData) => {
+                    if (err || !data.text) {
+                        this.chapterFailList.push({bookId: urlInfo.bookId, url: url});
+                        return;
+                    }
+                    let translate = "";
+                    let annotation = "";
+                    let $ = cheerio.load(subData.text);
+                    let con = $('.shisoncont').text();
+                    let start = con.lastIndexOf('译文') > con.lastIndexOf('全屏') ? con.lastIndexOf('译文') : con.lastIndexOf('全屏');
+                    let end = con.lastIndexOf('注释') == con.lastIndexOf('注释：') ? -1 : con.lastIndexOf('注释');
+                    if (end > 0) {
+                        translate = con.slice(start + 4, end);
+                        annotation = con.slice(end + 2);
+                    } else {
+                        translate = con.slice(start + 4);
+                    }
+                    chapter.translate = translate;
+                    chapter.annotation = annotation;
+                    MongoDB.updateData('book',{bookId: urlInfo.bookId}, {$push:{"chapter": chapter}}, () => {
+                        callBack(null, chapter);
+                    });
+                })
+            } else {
+                MongoDB.updateData('book',{bookId: urlInfo.bookId}, {$push:{"chapter": chapter}}, () => {
+                    callBack(null, chapter);
+                });
+            }
         });
     }
 };

@@ -22,5 +22,15 @@
     "times": "String",
     "author": "String",
     "url": "String"
+  },
+  "book": {
+    "bookId": "String",
+    "title": "String",
+    "introduce": "String",
+    "chapter": [{"chapterId": "String" ,"title": "String", "author": "String","subHead": "String", "content": "String", "translate": "String", "annotation": "String", "part": "String"}]
+  },
+  "fail_chapter": {
+    "bookId": "String",
+    "url": "String"
   }
 }
