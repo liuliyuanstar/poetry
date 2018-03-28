@@ -7,6 +7,7 @@ var bodyParser = require('body-parser');
 
 var index = require('./routes/index');
 var users = require('./routes/users');
+var server = require('./routes/server');
 
 var app = express();
 
@@ -22,8 +23,7 @@ app.all('*',function (req, res, next) {
   res.header('Content-Type', 'application/json; charset=UTF-8');
   if (req.method == 'OPTIONS') {
     res.send(200);
-  }
-  else {
+  } else {
     next();
   }
 });
@@ -38,6 +38,7 @@ app.use(express.static(path.join(__dirname, 'public')));
 
 app.use('/', index);
 app.use('/users', users);
+app.use('/server', server);
 
 // catch 404 and forward to error handler
 app.use(function(req, res, next) {

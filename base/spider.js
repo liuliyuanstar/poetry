@@ -93,8 +93,8 @@ spider = {
                 let totalNum = $($('.main3 .pages>span')[1]).text();
                 totalNum = parseInt(totalNum.slice(1, totalNum.length-2));
                 this.poetryUrls.totalNum = totalNum;
-                this.poetryUrls.totalPages = Math.floor(totalNum / 10) + 1;
-                // this.poetryUrls.totalPages = 10;
+                // this.poetryUrls.totalPages = Math.floor(totalNum / 10) + 1;
+                this.poetryUrls.totalPages = totalNum;
                 let urls = [];
                 for (let i = 0; i < this.poetryUrls.totalPages; i++) {
                     let url = this.poetryUrls.baseUrl + this.poetryUrls.mark + (i + 1) + ".aspx";
@@ -246,7 +246,7 @@ spider = {
                 totalNum = parseInt(totalNum.slice(1, totalNum.length-1));
                 this.ancientBooks.totalNum = totalNum;
                 let urls = [];
-                for (let i = 110; i < 111; i++) {
+                for (let i = 194; i < totalNum; i++) {
                     let url = this.ancientBooks.basicUrl + this.ancientBooks.mark + (i + 1) + ".aspx";
                     urls.push(url);
                 }

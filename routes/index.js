@@ -1,34 +1,27 @@
 var express = require('express');
 var router = express.Router();
-var spider = require('../base/spider');
+var basic = require('../base/basic');
 
-/* GET home page. */
-router.get('/', function(req, res, next) {
-  res.render('index', { title: '456' });
+// 获取诗文list
+router.post('/getPoetryList', function(req, res, next) {
+  const pageNo = req.query.pageNo;
+  const pageSize = req.query.pageSize;
+  basic.getPoetryList(pageNo, pageSize).then((data) => {
+    res.send(data);
+  }).catch(function (error) {
+    res.send(error);
+  });
 });
 
-// 获取分类
-router.get('/classify', function(req, res, next) {
-  spider.classify().then((data) => {
+//获取分类
+router.post('/getClassfiy', function(req, res, next) {
+  const tab = req.query.tab;
+  const title = req.query.title;
+  basic.getClassify(tab, title).then((data) => {
     res.send(data);
+  }).catch(function (error) {
+    res.send(error);
   });
-});
-// 获取古诗
-router.get('/poetry', function(req, res, next) {
-  spider.getPoetry().then((data) => {
-    res.send(data);
-  });
-});
-// 获取失败的古诗
-router.get('/repoetry', function(req, res, next) {
-  spider.reGetPoetry().then((data) => {
-    res.send(data);
-  });
-});
-// 获取古籍
-router.get('/book', function(req, res, next) {
-  spider.getAncientBooks().then((data) => {
-    res.send(data);
-  });
+
 });
 module.exports = router;
